@@ -58,3 +58,5 @@ coverage.xml
 celerybeat-schedule
 
 docs/_build/
+
+media

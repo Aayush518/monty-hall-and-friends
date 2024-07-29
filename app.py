@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from monty_hall import monty_hall_simulation
+from monty_hall import advanced_monty_hall_simulation
 
 app = Flask(__name__)
 
@@ -11,8 +11,9 @@ def index():
 def simulate():
     data = request.get_json()
     trials = data['trials']
-    stay_result = monty_hall_simulation(False, trials)
-    switch_result = monty_hall_simulation(True, trials)
+    doors = data['doors']
+    stay_result = advanced_monty_hall_simulation(False, trials, doors)
+    switch_result = advanced_monty_hall_simulation(True, trials, doors)
     return jsonify({
         'stay_percentage': stay_result,
         'switch_percentage': switch_result

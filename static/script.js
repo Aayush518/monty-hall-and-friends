@@ -1,58 +1,66 @@
-let doors = [0, 0, 0]; // 0: goat, 1: car
-let selectedDoor, revealedDoor;
+let doorCount = 3;
+let doors = [];
+let selectedDoor, revealedDoors = [], prizeDoor;
 let isGameOver = false;
+let timeLeft = 30;
+let timer;
+let streak = 0;
+let gamesPlayed = 0;
+let wins = 0;
 
 function initializeGame() {
-    doors = [0, 0, 0];
-    doors[Math.floor(Math.random() * 3)] = 1; // Place the car randomly
-    selectedDoor = null;
-    revealedDoor = null;
-    isGameOver = false;
-
-    document.querySelectorAll('.door').forEach(door => {
-        door.classList.remove('selected', 'revealed');
-        door.style.backgroundColor = '';
-        door.textContent = `Door ${door.id.slice(-1)}`;
-    });
-
-    document.getElementById('game-message').textContent = 'Select a door to start.';
-    document.getElementById('switch-door').style.display = 'none';
-    document.getElementById('stay').style.display = 'none';
-    document.getElementById('reset').style.display = 'none';
+    createDoors();
+    resetGame();
 }
 
-function selectDoor(doorNumber) {
-    if (isGameOver || selectedDoor !== null) return;
-
-    selectedDoor = doorNumber - 1; // Convert to 0-based index
-    document.getElementById(`door${doorNumber}`).classList.add('selected');
-    document.getElementById('game-message').textContent = 'Door selected. The host will now reveal a goat.';
-
-    setTimeout(() => {
-        revealGoatDoor();
-        document.getElementById('game-message').textContent = 'A goat has been revealed. Do you want to switch or stay?';
-        document.getElementById('switch-door').style.display = 'inline-block';
-        document.getElementById('stay').style.display = 'inline-block';
-    }, 1000);
+function createDoors() {
+    const doorsContainer = document.getElementById('doors-container');
+    doorsContainer.innerHTML = '';
+    doors = [];
+    for (let i = 0; i < doorCount; i++) {
+        const door = document.createElement('div');
+        door.className = 'door';
+        door.innerHTML = `
+            <div class="door-inner">
+                <div class="door-front">${i + 1}</div>
+                <div class="door-back"></div>
+            </div>`;
+        door.addEventListener('click', () => selectDoor(i));
+        doorsContainer.appendChild(door);
+        doors.push(door);
+    }
 }
 
-function revealGoatDoor() {
-    do {
-        revealedDoor = Math.floor(Math.random() * 3);
-    } while (revealedDoor === selectedDoor || doors[revealedDoor] === 1);
+function selectDoor(doorIndex) {
+    if (isGameOver || selectedDoor !== undefined) return;
+    selectedDoor = doorIndex;
+    doors[doorIndex].classList.add('selected');
+    document.getElementById('switch-door').classList.remove('hidden');
+    document.getElementById('stay').classList.remove('hidden');
+    revealGoatDoors();
+}
 
-    document.getElementById(`door${revealedDoor + 1}`).classList.add('revealed');
-    document.getElementById(`door${revealedDoor + 1}`).textContent = 'Goat';
+function revealGoatDoors() {
+    prizeDoor = Math.floor(Math.random() * doorCount);
+    for (let i = 0; i < doorCount; i++) {
+        if (i !== selectedDoor && i !== prizeDoor) {
+            revealedDoors.push(i);
+            doors[i].classList.add('revealed');
+            doors[i].querySelector('.door-back').textContent = '🐐';
+        }
+    }
+    if (revealedDoors.length === doorCount - 2) {
+        startTimer();
+    }
 }
 
 function switchDoor() {
     if (isGameOver) return;
-
-    const newDoor = 3 - selectedDoor - revealedDoor; // Find the remaining door
-    document.getElementById(`door${selectedDoor + 1}`).classList.remove('selected');
-    document.getElementById(`door${newDoor + 1}`).classList.add('selected');
-    selectedDoor = newDoor;
-
+    const availableDoors = doors.filter((_, i) => i !== selectedDoor && !revealedDoors.includes(i));
+    const newDoor = availableDoors[Math.floor(Math.random() * availableDoors.length)];
+    doors[selectedDoor].classList.remove('selected');
+    newDoor.classList.add('selected');
+    selectedDoor = doors.indexOf(newDoor);
     checkResult();
 }
 
@@ -63,42 +71,90 @@ function stay() {
 
 function checkResult() {
     isGameOver = true;
-    document.getElementById('switch-door').style.display = 'none';
-    document.getElementById('stay').style.display = 'none';
-    document.getElementById('reset').style.display = 'inline-block';
+    clearInterval(timer);
+    document.getElementById('switch-door').classList.add('hidden');
+    document.getElementById('stay').classList.add('hidden');
+    document.getElementById('reset').classList.remove('hidden');
 
-    for (let i = 0; i < 3; i++) {
-        const doorElement = document.getElementById(`door${i + 1}`);
-        doorElement.textContent = doors[i] === 1 ? 'Car' : 'Goat';
-        doorElement.style.backgroundColor = doors[i] === 1 ? '#FFD700' : '#FFA500';
-    }
+    doors.forEach((door, i) => {
+        door.classList.add('revealed');
+        const backSide = door.querySelector('.door-back');
+        if (i === prizeDoor) {
+            backSide.textContent = '🚗';
+            backSide.classList.add('car');
+        } else {
+            backSide.textContent = '🐐';
+        }
+    });
 
-    if (doors[selectedDoor] === 1) {
-        document.getElementById('game-message').textContent = 'Congratulations! You won the car!';
+    if (selectedDoor === prizeDoor) {
+        document.getElementById('game-message').textContent = 'You win! You found the car! 🎉';
+        streak++;
+        wins++;
     } else {
-        document.getElementById('game-message').textContent = 'Sorry, you got a goat. Better luck next time!';
+        document.getElementById('game-message').textContent = 'You lose! You got a goat. 🐐';
+        streak = 0;
     }
+    gamesPlayed++;
+    updateStats();
+}
+
+function resetGame() {
+    isGameOver = false;
+    selectedDoor = undefined;
+    revealedDoors = [];
+    prizeDoor = undefined;
+    document.getElementById('game-message').textContent = '';
+    document.getElementById('reset').classList.add('hidden');
+    document.getElementById('switch-door').classList.add('hidden');
+    document.getElementById('stay').classList.add('hidden');
+    document.getElementById('time-left').textContent = '30';
+
+    doors.forEach(door => {
+        door.classList.remove('selected', 'revealed');
+        door.querySelector('.door-back').className = 'door-back';
+    });
+
+    timeLeft = 30;
+}
+
+function startTimer() {
+    timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById('time-left').textContent = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            checkResult();
+        }
+    }, 1000);
+}
+
+function updateStats() {
+    document.getElementById('streak').textContent = streak;
+    document.getElementById('games-played').textContent = gamesPlayed;
+    document.getElementById('win-rate').textContent = `${((wins / gamesPlayed) * 100).toFixed(2)}%`;
 }
 
 function runSimulation() {
     const trials = parseInt(document.getElementById('trials').value);
+    const simDoorCount = parseInt(document.getElementById('sim-door-count').value);
 
     fetch('/simulate', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ trials: trials }),
+        body: JSON.stringify({ trials: trials, doors: simDoorCount }),
     })
     .then(response => response.json())
     .then(data => {
-        updateChart(data.stay_percentage, data.switch_percentage, trials);
+        updateChart(data.stay_percentage, data.switch_percentage, trials, simDoorCount);
     });
 }
 
 let chart;
 
-function updateChart(stayPercentage, switchPercentage, trials) {
+function updateChart(stayPercentage, switchPercentage, trials, doors) {
     const ctx = document.getElementById('results-chart').getContext('2d');
     
     if (chart) {
@@ -134,20 +190,26 @@ function updateChart(stayPercentage, switchPercentage, trials) {
             plugins: {
                 title: {
                     display: true,
-                    text: `Monty Hall Simulation Results (${trials} trials)`
+                    text: `Monty Hall Simulation Results (${trials} trials, ${doors} doors)`
                 }
             }
         }
     });
 }
 
+function updateDoorCount() {
+    doorCount = parseInt(document.getElementById('door-count').value);
+    resetGame();
+    createDoors();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeGame();
-    document.getElementById('door1').addEventListener('click', () => selectDoor(1));
-    document.getElementById('door2').addEventListener('click', () => selectDoor(2));
-    document.getElementById('door3').addEventListener('click', () => selectDoor(3));
+    document.getElementById('door-count').addEventListener('change', updateDoorCount);
     document.getElementById('switch-door').addEventListener('click', switchDoor);
     document.getElementById('stay').addEventListener('click', stay);
-    document.getElementById('reset').addEventListener('click', initializeGame);
+    document.getElementById('reset').addEventListener('click', resetGame);
     document.getElementById('run-simulation').addEventListener('click', runSimulation);
+    playExplanationVideo();
+
 });

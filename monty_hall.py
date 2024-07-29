@@ -1,17 +1,20 @@
 import random
 
-def monty_hall_simulation(switch: bool, trials: int) -> float:
+def advanced_monty_hall_simulation(switch: bool, trials: int, num_doors: int) -> float:
     wins = 0
     for _ in range(trials):
-        doors = [0, 0, 1]  # 0 - goat, 1 - car
+        doors = ['goat'] * (num_doors - 1) + ['car']
         random.shuffle(doors)
-        chosen_door = random.randint(0, 2)
-        revealed_door = next(d for d in range(3) if d != chosen_door and doors[d] == 0)
+        chosen_door = random.randint(0, num_doors - 1)
+        
+        revealed_doors = [i for i in range(num_doors) if i != chosen_door and doors[i] == 'goat']
+        revealed_doors = revealed_doors[:num_doors - 2]
         
         if switch:
-            chosen_door = next(d for d in range(3) if d != chosen_door and d != revealed_door)
+            remaining_doors = [i for i in range(num_doors) if i != chosen_door and i not in revealed_doors]
+            chosen_door = random.choice(remaining_doors)
         
-        if doors[chosen_door] == 1:
+        if doors[chosen_door] == 'car':
             wins += 1
     
     win_percentage = (wins / trials) * 100
